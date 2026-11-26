@@ -47,3 +47,7 @@ Kết quả được cache theo `BytecodePatchContext` (chạy patch lần 2 tro
    Nếu thiếu file này lúc chạy trên Android 6–7 sẽ báo lỗi desugar → gửi mình log.
 2. `Disable layout updates` (`LayoutUpdatesPatch.kt`) vẫn là patch không tên như bản gốc a6 (không chọn được). Giai đoạn 2 sẽ xử lý.
 3. Nếu build báo lỗi biên dịch, gửi nguyên log: phần lớn sẽ là lỗi nhỏ ở chỗ gọi API v22 mà mình không có compiler để thử.
+
+## Sửa sau lần build thử đầu tiên
+- `LithoFilterPatch.kt`: thiếu `import app.revanced.util.fingerprint.methodOrNull`.
+- `ShortcutPatch.kt`: option v22 không còn `key`; `key` cũ chính là id shortcut nên giờ ghi rõ theo cặp `"subscriptions" to subscriptions`, ...

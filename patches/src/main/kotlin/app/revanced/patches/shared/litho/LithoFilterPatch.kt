@@ -13,6 +13,7 @@ import app.revanced.util.findFreeRegister
 import app.revanced.util.findMethodsOrThrow
 import app.revanced.util.fingerprint.injectLiteralInstructionBooleanCall
 import app.revanced.util.fingerprint.matchOrThrow
+import app.revanced.util.fingerprint.methodOrNull
 import app.revanced.util.fingerprint.methodOrThrow
 import app.revanced.util.fingerprint.mutableClassOrThrow
 import app.revanced.util.getReference

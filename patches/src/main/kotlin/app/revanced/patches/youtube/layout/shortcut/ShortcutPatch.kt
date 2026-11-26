@@ -53,24 +53,25 @@ val shortcutPatch = resourcePatch(
     )
 
     apply {
+        // PORT-NOTE: v22 options have no `key`; the key was the shortcut id, so it is spelled out here.
         var options = listOf(
-            subscriptions,
-            search,
-            shorts
+            "subscriptions" to subscriptions,
+            "search" to search,
+            "shorts" to shorts
         )
 
         if (!is_19_44_or_greater) {
-            options += explore
+            options += "explore" to explore
         }
 
-        options.forEach { option ->
+        options.forEach { (shortcutId, option) ->
             if (option.value == true) {
                 document("res/xml/main_shortcuts.xml").use { document ->
                     val shortcuts = document.getElementsByTagName("shortcuts").item(0) as Element
                     val shortsItem = shortcuts.getElementsByTagName("shortcut")
                         .findElementByAttributeValueOrThrow(
                             "android:shortcutId",
-                            "${option.key}-shortcut"
+                            "$shortcutId-shortcut"
                         )
                     shortsItem.parentNode.removeChild(shortsItem)
                 }
