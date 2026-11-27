@@ -51,3 +51,23 @@ Kết quả được cache theo `BytecodePatchContext` (chạy patch lần 2 tro
 ## Sửa sau lần build thử đầu tiên
 - `LithoFilterPatch.kt`: thiếu `import app.revanced.util.fingerprint.methodOrNull`.
 - `ShortcutPatch.kt`: option v22 không còn `key`; `key` cũ chính là id shortcut nên giờ ghi rõ theo cặp `"subscriptions" to subscriptions`, ...
+
+## Sửa sau lần chạy CLI đầu tiên (fix2)
+**1. Va chạm tên lớp khi nạp chung nhiều bundle** (`IncompatibleClassChangeError: ... cannot inherit from sealed class ...Hook`)
+CLI nạp nhiều `-bp` qua cùng một class loader. a6 và bundle chính thức có 23 lớp trùng tên đầy đủ
+(`app.revanced.util.BytecodeUtilsKt`, `...video.playerresponse.Hook`, ...), nên lớp của bundle nạp trước thắng.
+- Toàn bộ package Kotlin của a6 chuyển sang vùng tên riêng:
+  `app.revanced.patches` → `app.revanced.rvxa6.patches`, `app.revanced.util` → `app.revanced.rvxa6.util`.
+- Tài nguyên đóng gói cũng nằm dưới gốc riêng: `resources/youtube/...` → `resources/rvxa6/youtube/...`
+  (đọc qua `BUNDLED_RESOURCE_ROOT` trong `util/ResourceUtils.kt`). Các chuỗi `"youtube/..."` trong patch giữ nguyên.
+- Extension Java (`app.revanced.extension.*`) không đổi: lớp của a6 nằm trong `rvxa6-*.rve`; xung đột chỉ xảy ra nếu bật
+  patch chính thức dùng cùng tên lớp extension (các patch trong file bat không dùng `shared.rve`).
+
+**2. `Extension "extensions/rvxa6-desugarlib.rve" not found`**
+`jar` đang trỏ cứng tới `desugar_lib_dex/release/classes1000.dex` (đường dẫn của AGP cũ). Giờ `patches/build.gradle.kts`:
+- tìm `**/desugar_lib_dex/**/*.dex` hoặc `**/classes1000.dex` trong `extensions/rvxa6-shared/build`;
+- kích hoạt tác vụ `l8DexDesugarLib*` của module extension nếu có;
+- nếu không tìm thấy thì **dừng build ngay** và in danh sách tệp `.dex` đang có, thay vì để lỗi lộ ra lúc chạy CLI;
+- ghi đè thủ công: đặt `rvxa6-desugarlib.rve` (lấy từ `desugarlib.rve` của một bản a6 gốc) vào
+  `patches/src/main/resources/extensions/` thì sẽ dùng tệp đó.
+Các lỗi `lateinit property rvxSettingFile` / `has failed previously` trong log cũ đều chỉ là hệ quả của lỗi này.

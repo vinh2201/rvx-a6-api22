@@ -1,0 +1,72 @@
+package app.revanced.rvxa6.patches.youtube.general.startpage
+
+import app.revanced.patcher.extensions.addInstruction
+import app.revanced.patcher.extensions.addInstructions
+import app.revanced.patcher.extensions.getInstruction
+import app.revanced.patcher.patch.bytecodePatch
+import app.revanced.rvxa6.patches.youtube.utils.compatibility.Constants.COMPATIBLE_PACKAGE
+import app.revanced.rvxa6.patches.youtube.utils.extension.Constants.GENERAL_PATH
+import app.revanced.rvxa6.patches.youtube.utils.patch.PatchList.CHANGE_START_PAGE
+import app.revanced.rvxa6.patches.youtube.utils.settings.ResourceUtils.addPreference
+import app.revanced.rvxa6.patches.youtube.utils.settings.settingsPatch
+import app.revanced.rvxa6.util.fingerprint.matchOrThrow
+import app.revanced.rvxa6.util.fingerprint.methodOrThrow
+import app.revanced.rvxa6.util.getReference
+import app.revanced.rvxa6.util.indexOfFirstInstructionOrThrow
+import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.reference.StringReference
+
+private const val EXTENSION_CLASS_DESCRIPTOR =
+    "$GENERAL_PATH/ChangeStartPagePatch;"
+
+@Suppress("unused")
+val changeStartPagePatch = bytecodePatch(
+    name = CHANGE_START_PAGE.patchName,
+    description = CHANGE_START_PAGE.summary
+) {
+    compatibleWith(COMPATIBLE_PACKAGE)
+
+    dependsOn(settingsPatch)
+
+    apply {
+
+        // Hook browseId.
+        browseIdFingerprint.methodOrThrow().apply {
+            val browseIdIndex = indexOfFirstInstructionOrThrow {
+                opcode == Opcode.CONST_STRING &&
+                        getReference<StringReference>()?.string == "FEwhat_to_watch"
+            }
+            val browseIdRegister = getInstruction<OneRegisterInstruction>(browseIdIndex).registerA
+
+            addInstructions(
+                browseIdIndex + 1, """
+                    invoke-static { v$browseIdRegister }, $EXTENSION_CLASS_DESCRIPTOR->overrideBrowseId(Ljava/lang/String;)Ljava/lang/String;
+                    move-result-object v$browseIdRegister
+                    """
+            )
+        }
+
+        // There is no browseId assigned to Shorts and Search.
+        // Just hook the Intent action.
+        intentFingerprint.matchOrThrow().let {
+            it.method.addInstruction(
+                it.stringMatches!!.first().index - 3,
+                "invoke-static { v2 }, $EXTENSION_CLASS_DESCRIPTOR->overrideIntent(Landroid/content/Intent;)V"
+            )
+        }
+
+        // region add settings
+
+        addPreference(
+            arrayOf(
+                "PREFERENCE_SCREEN: GENERAL",
+                "SETTINGS: CHANGE_START_PAGE"
+            ),
+            CHANGE_START_PAGE
+        )
+
+        // endregion
+
+    }
+}
