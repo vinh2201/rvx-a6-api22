@@ -71,3 +71,11 @@ CLI nạp nhiều `-bp` qua cùng một class loader. a6 và bundle chính thứ
 - ghi đè thủ công: đặt `rvxa6-desugarlib.rve` (lấy từ `desugarlib.rve` của một bản a6 gốc) vào
   `patches/src/main/resources/extensions/` thì sẽ dùng tệp đó.
 Các lỗi `lateinit property rvxSettingFile` / `has failed previously` trong log cũ đều chỉ là hệ quả của lỗi này.
+
+## Sửa sau lần chạy CLI thứ hai (fix3)
+Log chỉ còn 3 patch lỗi logic (`Spoof streaming data` lỗi vì `AudioTracksHook`, `Miniplayer`, `Remove background playback restrictions`).
+- **Khớp chuỗi của fingerprint**: shim khớp theo *chuỗi con* nên `"raw"` và `"appName"` khớp nhầm phương thức khác
+  (`Lcqv;->p()` thay vì `Lxvf;->O(...)`; `Lpdq;->toString` thay vì `Lwrv;->a`). Đã kiểm chứng trên smali 17.34.36
+  bằng bộ mô phỏng fingerprint: khớp CHÍNH XÁC trước, chỉ khi không có kết quả chính xác mới khớp chuỗi con
+  (chỉ `ConversionContext{container` và `playerControlsVisibilityModelFingerprint` cần nhánh dự phòng này).
+- **`by navigate(...)`** (BackgroundPlaybackPatch): v22 dùng `navigate(method).to(index).stop()`.

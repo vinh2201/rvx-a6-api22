@@ -28,8 +28,11 @@ import com.android.tools.smali.dexlib2.util.MethodUtil
  *
  *  - accessFlags: exact equality.
  *  - returnType / parameters: prefix match (same as v21 `returns()` / `parameters()`).
- *  - strings: every string must be a *substring* of a distinct const-string in the method,
- *    `stringMatches` are reported in instruction order.
+ *  - strings: every string must match a distinct const-string in the method, `stringMatches` are reported in
+ *    instruction order. Matching is EXACT first; only when nothing matches exactly the fingerprint is matched again
+ *    with the string being a *substring* of the const-string (verified against the 17.34.36 smali: e.g. the `"raw"`
+ *    and `"appName"` fingerprints are ambiguous with substring matching but unique with exact matching, while
+ *    `"ConversionContext{container"` can only be resolved by substring matching).
  *  - opcodes: pattern with `null` wildcards and an optional fuzzy threshold,
  *    `patternMatch.endIndex` is the INCLUSIVE index of the last matched instruction.
  *  - the first match in `classDefs` order wins.
@@ -96,31 +99,48 @@ class Fingerprint internal constructor(
     fun matchOrNull(context: BytecodePatchContext): Match? {
         if (cachedContext === context) return cachedMatch
 
-        for (classDef in context.classDefs) {
-            val match = matchOrNull(context, classDef)
-            if (match != null) {
-                cachedContext = context
-                cachedMatch = match
-                return match
-            }
+        val match = scanAllClasses(context, partialStrings = false)
+            ?: if (strings != null) scanAllClasses(context, partialStrings = true) else null
+
+        if (match != null) {
+            cachedContext = context
+            cachedMatch = match
         }
 
-        return null
+        return match
     }
 
     /**
      * Finds the first match inside the methods of a single class.
      */
-    fun matchOrNull(context: BytecodePatchContext, classDef: ClassDef): Match? {
-        for (method in classDef.methods) {
-            val match = matchOrNull(context, method, classDef)
+    fun matchOrNull(context: BytecodePatchContext, classDef: ClassDef): Match? =
+        scanClass(context, classDef, partialStrings = false)
+            ?: if (strings != null) scanClass(context, classDef, partialStrings = true) else null
+
+    private fun scanAllClasses(context: BytecodePatchContext, partialStrings: Boolean): Match? {
+        for (classDef in context.classDefs) {
+            val match = scanClass(context, classDef, partialStrings)
             if (match != null) return match
         }
 
         return null
     }
 
-    private fun matchOrNull(context: BytecodePatchContext, method: Method, classDef: ClassDef): Match? {
+    private fun scanClass(context: BytecodePatchContext, classDef: ClassDef, partialStrings: Boolean): Match? {
+        for (method in classDef.methods) {
+            val match = matchOrNull(context, method, classDef, partialStrings)
+            if (match != null) return match
+        }
+
+        return null
+    }
+
+    private fun matchOrNull(
+        context: BytecodePatchContext,
+        method: Method,
+        classDef: ClassDef,
+        partialStrings: Boolean,
+    ): Match? {
         if (accessFlags != null && accessFlags != method.accessFlags) return null
         if (returnType != null && !method.returnType.startsWith(returnType)) return null
         if (parameters != null && !parametersEqual(parameters, method.parameterTypes)) return null
@@ -147,7 +167,7 @@ class Fingerprint internal constructor(
                     return@forEachIndexed
                 }
                 val string = ((instruction as ReferenceInstruction).reference as StringReference).string
-                val i = remaining.indexOfFirst { string.contains(it) }
+                val i = remaining.indexOfFirst { if (partialStrings) string.contains(it) else string == it }
                 if (i < 0) return@forEachIndexed
 
                 found.add(Match.StringMatch(string, index))
