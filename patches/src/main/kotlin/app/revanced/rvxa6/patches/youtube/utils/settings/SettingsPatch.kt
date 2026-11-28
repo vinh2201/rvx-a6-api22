@@ -3,6 +3,7 @@ package app.revanced.rvxa6.patches.youtube.utils.settings
 import app.revanced.patcher.extensions.addInstructionsWithLabels
 import app.revanced.patcher.extensions.getInstruction
 import app.revanced.patcher.patch.BytecodePatchContext
+import app.revanced.patcher.patch.booleanOption
 import app.revanced.patcher.patch.bytecodePatch
 import app.revanced.patcher.patch.resourcePatch
 import app.revanced.patcher.patch.stringOption
@@ -207,6 +208,50 @@ val settingsPatch = resourcePatch(
         required = true,
     )
 
+    // ---- Launch guard (manifest tweaks that keep the patched app from failing at start-up) ----
+    val guardClearSplitMetadata by booleanOption(
+        default = true,
+        name = "Guard: clear split metadata",
+        description = "Removes split-install attributes and Play Store split metadata from the manifest.",
+    )
+
+    val guardRepairExportFlags by booleanOption(
+        default = true,
+        name = "Guard: repair export flags",
+        description = "Adds the missing android:exported flag to components with an intent filter.",
+    )
+
+    val guardRelaxRequiredLibraries by booleanOption(
+        default = true,
+        name = "Guard: relax required libraries",
+        description = "Sets android:required=false on every <uses-library>.",
+    )
+
+    val guardUnmarkTestOnly by booleanOption(
+        default = true,
+        name = "Guard: unmark test only",
+        description = "Removes android:testOnly from the manifest.",
+    )
+
+    val guardExtractNativeLibs by booleanOption(
+        default = true,
+        name = "Guard: extract native libs",
+        description = "Sets android:extractNativeLibs=true so native libraries are extracted at install time.",
+    )
+
+    val guardDisableHeapPointerTagging by booleanOption(
+        default = true,
+        name = "Guard: disable heap pointer tagging",
+        description = "Sets android:allowNativeHeapPointerTagging=false (Android 11+).",
+    )
+
+    val guardVmSafeMode by booleanOption(
+        default = true,
+        name = "Guard: VM safe mode",
+        description = "Sets android:vmSafeMode=true: the app runs without AOT/JIT optimizations. " +
+                "Stabilizes apps that crash because of the compiler, but is slower. Turn it off once the app is stable.",
+    )
+
     apply {
         /**
          * check patch options
@@ -218,6 +263,21 @@ val settingsPatch = resourcePatch(
             .valueOrThrow()
 
         ResourceUtils.setContext(this)
+
+        /**
+         * launch guard (manifest only)
+         */
+        applyLaunchGuard(
+            LaunchGuardConfig(
+                clearSplitMetadata = guardClearSplitMetadata == true,
+                repairExportFlags = guardRepairExportFlags == true,
+                relaxRequiredLibraries = guardRelaxRequiredLibraries == true,
+                unmarkTestOnly = guardUnmarkTestOnly == true,
+                extractNativeLibs = guardExtractNativeLibs == true,
+                disableHeapPointerTagging = guardDisableHeapPointerTagging == true,
+                vmSafeMode = guardVmSafeMode == true,
+            )
+        )
 
         /**
          * remove strings duplicated with RVX resources

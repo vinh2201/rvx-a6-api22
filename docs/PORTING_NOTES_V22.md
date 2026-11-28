@@ -79,3 +79,20 @@ Log chỉ còn 3 patch lỗi logic (`Spoof streaming data` lỗi vì `AudioTrack
   bằng bộ mô phỏng fingerprint: khớp CHÍNH XÁC trước, chỉ khi không có kết quả chính xác mới khớp chuỗi con
   (chỉ `ConversionContext{container` và `playerControlsVisibilityModelFingerprint` cần nhánh dự phòng này).
 - **`by navigate(...)`** (BackgroundPlaybackPatch): v22 dùng `navigate(method).to(index).stop()`.
+
+## Launch guard (fix4)
+Nhóm patch chống crash lúc khởi động lấy từ Nai64Patches (Morphe), gộp vào `Settings for YouTube (A6)`
+(không tạo patch riêng). Mã nằm ở `youtube/utils/settings/LaunchGuard.kt`, mỗi mục là một option bật/tắt:
+
+| Option | Gốc (Morphe) | Việc làm |
+|---|---|---|
+| Guard: clear split metadata | Clearing Split Metadata | bỏ thuộc tính/metadata split-install (thêm cả `isSplitRequired` ở `<application>`) |
+| Guard: repair export flags | Repair Missing Component Export Flags | thêm `android:exported` còn thiếu. **Khác gốc**: ghi `true` (gốc ghi `false` cho mọi thành phần không phải launcher, sẽ làm hỏng deep link/share target) |
+| Guard: relax required libraries | Relax Required Libraries | `<uses-library android:required="false">` |
+| Guard: unmark test only | Unmark Test Only | bỏ `android:testOnly` |
+| Guard: extract native libs | Force Extract Native Libs | `android:extractNativeLibs="true"` |
+| Guard: disable heap pointer tagging | Disable Heap Pointer Tagging | `android:allowNativeHeapPointerTagging="false"` |
+| Guard: VM safe mode | VM Safe Mode | `android:vmSafeMode="true"` (tắt tối ưu AOT/JIT, chậm hơn) |
+
+Mặc định tất cả bật để thử nghiệm. Chưa chép các patch bytecode của Nai64 (Disable StrictMode, v.v.) vì chúng không liên quan
+tới lỗi nạp lớp lúc khởi động.
